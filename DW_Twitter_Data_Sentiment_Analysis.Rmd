@@ -1,0 +1,52 @@
+---
+title: "Data_Wrangling_Final"
+author: "Shengtao Lin"
+date: "3/30/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(tidyr)
+library(broom)
+library(ggplot2)
+library(tidytext)
+library(textdata)
+library(tm)
+library(rtweet)
+```
+
+```{r}
+#api information
+appname <- "DataWranglingFinal"
+key <- "MaD1BxAxkamvNlQlkuEYr5xZW"
+secret<-"OoItZw4daDAWGRcfKRHe9OlCUXyiJWR3ND4cGPmZ9W5kHG66yT"
+accessToken="1190435999551303680-K6w06USFl27dt1Mkwj68jCA9c1LM0j"
+accessSecrete="0v5eEUvq1ZhlUpuru9lK0SVbgyKH5nTIL22L4TsIcENRn"
+```
+
+```{r}
+#Sends request to generate twitter token 
+twitter_token <- create_token(
+  app = appname,
+  consumer_key = key,
+  consumer_secret = secret,
+  access_token = accessToken,
+  access_secret = accessSecrete)
+```
+
+```{r}
+rstats_tweets <- search_tweets(q = "#StopAsianHate",n = 70,include_rts = FALSE,lang = "en")
+```
+```{r}
+rstats_tweets
+```
+
+
+
+
+
