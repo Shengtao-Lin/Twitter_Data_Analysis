@@ -18,6 +18,7 @@ library(tidytext)
 library(textdata)
 library(tm)
 library(rtweet)
+library(here)
 ```
 
 ```{r}
