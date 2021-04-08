@@ -41,11 +41,18 @@ twitter_token <- create_token(
 ```
 
 ```{r}
-rstats_tweets <- search_tweets(q = "#StopAsianHate",n = 70,include_rts = FALSE,lang = "en")
+original_tweets <- search_tweets(q = "#StopAsianHate",n = 10000,include_rts = FALSE,lang = "en")
 ```
 ```{r}
-rstats_tweets
+colnames(original_tweets)
+sapply(original_tweets, typeof)
 ```
+
+
+```{r}
+write.csv(original_tweets,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/original_tweets.cvs")
+```
+
 
 
 
