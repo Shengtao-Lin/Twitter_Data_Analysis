@@ -19,6 +19,11 @@ library(textdata)
 library(tm)
 library(rtweet)
 library(here)
+library(maps)
+library(ggthemes)
+library(textmineR)
+library(MASS)
+library(topicmodels)
 ```
 
 ```{r}
@@ -41,16 +46,248 @@ twitter_token <- create_token(
 ```
 
 ```{r}
-original_tweets <- search_tweets(q = "#StopAsianHate",n = 10000,include_rts = FALSE,lang = "en")
+original_tweets_SAH <- search_tweets(q = "#StopAsianHate",n = 10000,include_rts = FALSE,lang = "en")
+original_tweets_Vaccine <- search_tweets(q = "#Vaccine",n = 10000,include_rts = FALSE,lang = "en")
 ```
 ```{r}
-colnames(original_tweets)
-sapply(original_tweets, typeof)
+head(original_tweets_SAH,10)
+dim(original_tweets_Vaccine)
+```
+Store the original data with columns we want to study.  
+```{r}
+#generate coord
+original_tweets_SAH<-lat_lng(original_tweets_SAH, coords = c("coords_coords", "bbox_coords", "geo_coords"))
+
+original_tweets_SAH_subset<-original_tweets_SAH%>%select(user_id,status_id,screen_name,text,source,country,name,location,lat,lng,created_at)
+
+write.csv(original_tweets_SAH_subset,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/original_tweets_SAH.cvs")
+
+original_tweets_Vaccine<-lat_lng(original_tweets_Vaccine, coords = c("coords_coords", "bbox_coords", "geo_coords"))
+
+original_tweets_Vaccine_subset<-original_tweets_Vaccine%>%select(user_id,status_id,screen_name,text,source,country,name,location,lat,lng,created_at)
+
+write.csv(original_tweets_Vaccine_subset,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/original_tweets_Vaccine.cvs")
 ```
 
+Load the data from csv file and start cleaning
+```{r}
+df_SAH_ori <- read.csv("original_tweets_SAH.cvs")
+df_Vac_ori <-read.csv("original_tweets_Vaccine.cvs")
+
+data("stop_words")
+#SAH
+
+df_SAH_ori<-df_SAH_ori%>%
+  mutate(stripped_text=gsub("http.*","",  text))%>% #remove URL
+  mutate(stripped_text=gsub("#\\w+ *","",  stripped_text))%>% #remove hash tag
+  mutate(stripped_text=gsub("@\\w+ *","",  stripped_text))%>% #remove @
+  mutate(stripped_text=gsub("\\(","",  stripped_text))%>% #remove ( and )
+  mutate(stripped_text=gsub("\\)","",  stripped_text))%>%
+  mutate(stripped_text = tolower(stripped_text))%>% #lower case
+  mutate(stripped_text=gsub("[\r\n]", "",  stripped_text))%>% #remove new line
+  mutate(stripped_text=gsub("&amp", "",  stripped_text))%>% #
+  mutate(stripped_text=gsub("[[:punct:]]+", "",  stripped_text))%>%
+  mutate(stripped_text=gsub("[[:digit:]]+", "",  stripped_text))
+
+write.csv(df_SAH_ori,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/cleaned_tweets_SAH.cvs")
+
+
+df_SAH_cleaned <- read.csv("cleaned_tweets_SAH.cvs")
+
+df_SAH_cleaned1<-df_SAH_cleaned%>%unnest_tokens(word,stripped_text)%>%anti_join(stop_words)
+
+#Vac
+
+df_Vac_ori<-df_Vac_ori%>%
+  mutate(stripped_text=gsub("http.*","",  text))%>% #remove URL
+  mutate(stripped_text=gsub("#\\w+ *","",  stripped_text))%>% #remove hash tag
+  mutate(stripped_text=gsub("@\\w+ *","",  stripped_text))%>% #remove @
+  mutate(stripped_text=gsub("\\(","",  stripped_text))%>% #remove ( and )
+  mutate(stripped_text=gsub("\\)","",  stripped_text))%>%
+  mutate(stripped_text = tolower(stripped_text))%>% #lower case
+  mutate(stripped_text=gsub("[\r\n]", "",  stripped_text))%>% #remove new line
+  mutate(stripped_text=gsub("&amp", "",  stripped_text))%>% #
+  mutate(stripped_text=gsub("[[:punct:]]+", "",  stripped_text))%>%
+  mutate(stripped_text=gsub("[[:digit:]]+", "",  stripped_text))
+  
+
+write.csv(df_Vac_ori,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/cleaned_tweets_Vac.cvs")
+
+
+df_Vac_cleaned <- read.csv("cleaned_tweets_Vac.cvs")
+
+df_Vac_cleaned1<-df_Vac_cleaned%>%unnest_tokens(word,stripped_text)%>%anti_join(stop_words)
+
+```
+```{r}
+#most common used words.
+
+df_SAH_cleaned1 %>%
+  count(word, sort = TRUE) %>%
+  top_n(15) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+      labs(x = "Count",
+      y = "Unique words",
+      title = "Count of unique words found in StopAsianHate tweets")
+
+df_Vac_cleaned1 %>%
+  count(word, sort = TRUE) %>%
+  top_n(15) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+      labs(x = "Count",
+      y = "Unique words",
+      title = "Count of unique words found in Vaccine tweets")
+```
+```{r}
+# 3 grams analysis
+
+df_SAH_ngram<-df_SAH_cleaned%>%
+  dplyr::select(stripped_text) %>%
+  unnest_tokens(pair,stripped_text,token = "ngrams", n = 3)
+
+SAH_3grams<-df_SAH_ngram%>%
+  separate(pair, c("word1", "word2","word3"), sep = " ")%>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  filter(!word3 %in% stop_words$word) %>%
+  count(word1, word2, word3, sort = TRUE)%>%
+  drop_na()
+
+SAH_3grams%>%top_n(10)
+```
+```{r}
+#world map for #Vaccine
+tweet_locations_Vac <- df_Vac_cleaned %>% na.omit()
+
+world_basemap <- ggplot() +
+  borders("world", colour = "gray80", fill = "gray70")+
+  theme_map()+
+  geom_point(data = tweet_locations_Vac, aes(x = lng, y = lat),colour = 'red', alpha = .3) +
+  labs(title = "Tweet Locations for #Vaccine")
+
+world_basemap
+```
 
 ```{r}
-write.csv(original_tweets,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/original_tweets.cvs")
+#map for ASH in US
+tweet_locations_SAH <- df_SAH_cleaned %>% na.omit()%>%filter(lng>=(-130),lng<=(-60),lat>=(20),lat<=(50))
+
+us_basemap <- ggplot() +
+  borders("state")+
+  theme_map()+
+  geom_point(data = tweet_locations_SAH, aes(x = lng, y = lat),colour = 'red', alpha = .3) +
+  labs(title = "Tweet Locations for #StopAsianHate")
+
+us_basemap
+```
+```{r}
+bing_Vac_counts <- df_Vac_cleaned1 %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+bing_Vac_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "Sentiment all time for #Vaccine.",
+       y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+```{r}
+bing_SAH_counts <- df_SAH_cleaned1 %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+bing_SAH_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "Sentiment all time for #StopAsianHate.",
+       y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+```{r}
+Vac_sentiment<- df_Vac_cleaned1 %>%
+  inner_join(get_sentiments("bing")) %>%
+  mutate(index = format(as.POSIXlt(created_at),"%Y%m%d%H"))%>%
+  count(index,sentiment)%>%
+  pivot_wider(names_from = "sentiment",values_from="n")%>%
+  mutate(sentiment= positive-negative)%>%
+  mutate(pos = sentiment >= 0)
+ 
+
+time<-format(as.POSIXlt(df_Vac_cleaned1$created_at),"%Y-%m-%d-%H")
+time<-unique(time)
+
+ggplot(Vac_sentiment,aes(index,sentiment,fill = pos))+
+  geom_bar(stat="identity")+theme(axis.text.x = element_text(angle=90))+
+  theme(legend.position = "none")+
+  labs(title="Sentiment of #Vaccine by hour")+
+  scale_x_discrete(labels= time)+ylim(c(-75,25))
+
+```
+```{r}
+
+corpus <- Corpus(VectorSource(df_Vac_cleaned$stripped_text))
+corpus <- tm_map(corpus, removeWords, stopwords("en"))  
+
+doc.lengths <- rowSums(as.matrix(DocumentTermMatrix(corpus)))
+dtm <- DocumentTermMatrix(corpus[doc.lengths > 0])
+
+lda <- LDA(dtm, 4,control=list(seed=1234))
+
+
+topics4 <- tidy(lda, matrix = "beta")
+
+top_terms <- topics4 %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms%>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
+
+lda_2 <-LDA(dtm,k=4,method="Gibbs", control=list(seed=1234))
+
+topics4 <- tidy(lda_2, matrix = "beta")
+
+top_terms <- topics4 %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms%>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
 ```
 
 
