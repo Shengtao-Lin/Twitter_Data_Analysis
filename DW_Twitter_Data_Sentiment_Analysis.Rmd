@@ -2,7 +2,9 @@
 title: "Data_Wrangling_Final"
 author: "Shengtao Lin"
 date: "3/30/2021"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -26,7 +28,7 @@ library(MASS)
 library(topicmodels)
 ```
 
-```{r}
+```{r api_key}
 #api information
 appname <- "DataWranglingFinal"
 key <- "MaD1BxAxkamvNlQlkuEYr5xZW"
@@ -35,7 +37,7 @@ accessToken="1190435999551303680-K6w06USFl27dt1Mkwj68jCA9c1LM0j"
 accessSecrete="0v5eEUvq1ZhlUpuru9lK0SVbgyKH5nTIL22L4TsIcENRn"
 ```
 
-```{r}
+```{r create_token}
 #Sends request to generate twitter token 
 twitter_token <- create_token(
   app = appname,
@@ -44,36 +46,42 @@ twitter_token <- create_token(
   access_token = accessToken,
   access_secret = accessSecrete)
 ```
-
-```{r}
-original_tweets_SAH <- search_tweets(q = "#StopAsianHate",n = 10000,include_rts = FALSE,lang = "en")
-original_tweets_Vaccine <- search_tweets(q = "#Vaccine",n = 10000,include_rts = FALSE,lang = "en")
+Collect data with hashtag #StopAsianHate and #Vaccine.
+Each 10000 posts, does not include retweet, set language to English.
+```{r seach_tweets}
+# this is commented to prevent recollect data
+#original_tweets_SAH <- search_tweets(q = "#StopAsianHate",n = 10000,include_rts = FALSE,lang = "en")
+#original_tweets_Vaccine <- search_tweets(q = "#Vaccine",n = 10000,include_rts = FALSE,lang = "en")
 ```
-```{r}
-head(original_tweets_SAH,10)
-dim(original_tweets_Vaccine)
-```
-Store the original data with columns we want to study.  
-```{r}
+Store the original data with columns we want to study.   
+```{r store_origin_df}
 #generate coord
-original_tweets_SAH<-lat_lng(original_tweets_SAH, coords = c("coords_coords", "bbox_coords", "geo_coords"))
+#commented to knit
 
-original_tweets_SAH_subset<-original_tweets_SAH%>%select(user_id,status_id,screen_name,text,source,country,name,location,lat,lng,created_at)
+#original_tweets_SAH<-lat_lng(original_tweets_SAH, coords = c("coords_coords", "bbox_coords", "geo_coords"))
 
-write.csv(original_tweets_SAH_subset,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/original_tweets_SAH.cvs")
+#original_tweets_SAH_subset<-original_tweets_SAH%>%select(user_id,status_id,screen_name,text,source,country,name,location,lat,lng,created_at)
 
-original_tweets_Vaccine<-lat_lng(original_tweets_Vaccine, coords = c("coords_coords", "bbox_coords", "geo_coords"))
+#write.csv(original_tweets_SAH_subset,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/original_tweets_SAH.cvs")
 
-original_tweets_Vaccine_subset<-original_tweets_Vaccine%>%select(user_id,status_id,screen_name,text,source,country,name,location,lat,lng,created_at)
+#original_tweets_Vaccine<-lat_lng(original_tweets_Vaccine, coords = c("coords_coords", "bbox_coords", "geo_coords"))
 
-write.csv(original_tweets_Vaccine_subset,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/original_tweets_Vaccine.cvs")
+#original_tweets_Vaccine_subset<-original_tweets_Vaccine%>%select(user_id,status_id,screen_name,text,source,country,name,location,lat,lng,created_at)
+
+#write.csv(original_tweets_Vaccine_subset,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/original_tweets_Vaccine.cvs")
 ```
 
-Load the data from csv file and start cleaning
+Load the data from csv file 
 ```{r}
 df_SAH_ori <- read.csv("original_tweets_SAH.cvs")
 df_Vac_ori <-read.csv("original_tweets_Vaccine.cvs")
+head(df_SAH_ori)
+head(df_Vac_ori)
+```
 
+
+Start cleaning
+```{r cleaning}
 data("stop_words")
 #SAH
 
@@ -85,16 +93,17 @@ df_SAH_ori<-df_SAH_ori%>%
   mutate(stripped_text=gsub("\\)","",  stripped_text))%>%
   mutate(stripped_text = tolower(stripped_text))%>% #lower case
   mutate(stripped_text=gsub("[\r\n]", "",  stripped_text))%>% #remove new line
-  mutate(stripped_text=gsub("&amp", "",  stripped_text))%>% #
-  mutate(stripped_text=gsub("[[:punct:]]+", "",  stripped_text))%>%
-  mutate(stripped_text=gsub("[[:digit:]]+", "",  stripped_text))
+  mutate(stripped_text=gsub("&amp", "",  stripped_text))%>% #remove &amp
+  mutate(stripped_text=gsub("[[:punct:]]+", "",  stripped_text))%>%#remove punctuation
+  mutate(stripped_text=gsub("[[:digit:]]+", "",  stripped_text))#remove digits
 
-write.csv(df_SAH_ori,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/cleaned_tweets_SAH.cvs")
+#commented to knit
+#write.csv(df_SAH_ori,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/cleaned_tweets_SAH.cvs")
 
 
 df_SAH_cleaned <- read.csv("cleaned_tweets_SAH.cvs")
 
-df_SAH_cleaned1<-df_SAH_cleaned%>%unnest_tokens(word,stripped_text)%>%anti_join(stop_words)
+df_SAH_cleaned1<-df_SAH_cleaned%>%unnest_tokens(word,stripped_text)%>%anti_join(stop_words)#remove stopwords
 
 #Vac
 
@@ -106,20 +115,27 @@ df_Vac_ori<-df_Vac_ori%>%
   mutate(stripped_text=gsub("\\)","",  stripped_text))%>%
   mutate(stripped_text = tolower(stripped_text))%>% #lower case
   mutate(stripped_text=gsub("[\r\n]", "",  stripped_text))%>% #remove new line
-  mutate(stripped_text=gsub("&amp", "",  stripped_text))%>% #
-  mutate(stripped_text=gsub("[[:punct:]]+", "",  stripped_text))%>%
-  mutate(stripped_text=gsub("[[:digit:]]+", "",  stripped_text))
+  mutate(stripped_text=gsub("&amp", "",  stripped_text))%>% #remove &amp
+  mutate(stripped_text=gsub("[[:punct:]]+", "",  stripped_text))%>%#remove punctuation
+  mutate(stripped_text=gsub("[[:digit:]]+", "",  stripped_text))#remove digits
   
-
-write.csv(df_Vac_ori,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/cleaned_tweets_Vac.cvs")
+#commented to knit
+#write.csv(df_Vac_ori,"/Users/LINHTS/Documents/GitHub/Twitter_Data_Analysis/cleaned_tweets_Vac.cvs")
 
 
 df_Vac_cleaned <- read.csv("cleaned_tweets_Vac.cvs")
 
-df_Vac_cleaned1<-df_Vac_cleaned%>%unnest_tokens(word,stripped_text)%>%anti_join(stop_words)
+
+df_Vac_cleaned1<-df_Vac_cleaned%>%unnest_tokens(word,stripped_text)%>%anti_join(stop_words)# remove stop words
 
 ```
+cleaned the texts of tweets by removing URLs, hashtags, mentions, &amp, punctuations, and digits. Also convereted all letters to lower case and removed stop words.
 ```{r}
+head(df_SAH_cleaned[,3:14])
+head(df_Vac_cleaned[,3:14])
+```
+
+```{r most_common_used_words}
 #most common used words.
 
 df_SAH_cleaned1 %>%
@@ -146,9 +162,11 @@ df_Vac_cleaned1 %>%
       y = "Unique words",
       title = "Count of unique words found in Vaccine tweets")
 ```
-```{r}
-# 3 grams analysis
+We can see for #StopAsianHate, asian, hate, racism, people, stop are most frequently used words.  
+For #Vaccine, the words vaccine, covid, people, vaccinated, dose are most frequently used.  
 
+```{r 3_grams}
+# 3 grams analysis
 df_SAH_ngram<-df_SAH_cleaned%>%
   dplyr::select(stripped_text) %>%
   unnest_tokens(pair,stripped_text,token = "ngrams", n = 3)
@@ -163,32 +181,37 @@ SAH_3grams<-df_SAH_ngram%>%
 
 SAH_3grams%>%top_n(10)
 ```
-```{r}
+We can see "covid hate crimes", "stop asian hate", "hate crime act", are most common 3 grams.  
+
+```{r Vac_map}
 #world map for #Vaccine
 tweet_locations_Vac <- df_Vac_cleaned %>% na.omit()
 
 world_basemap <- ggplot() +
   borders("world", colour = "gray80", fill = "gray70")+
   theme_map()+
-  geom_point(data = tweet_locations_Vac, aes(x = lng, y = lat),colour = 'red', alpha = .3) +
-  labs(title = "Tweet Locations for #Vaccine")
+  geom_point(data = tweet_locations_Vac, aes(x = lng, y = lat, color = source),  alpha = .5) +
+  labs(title = "Tweet Locations for #Vaccine")+
+  scale_color_manual(values=c("#ebae34", "#ebae34", "#8b19e3","#ebae34","#eb3443","#08d431","#eb3443","#eb3443"))
 
 world_basemap
 ```
-
-```{r}
+We can see the location of the #Vaccine tweets are mainly in US, Canada, UK, and India. Also we can see the decive people are using. People in US are using all different platforms, user in UK prefer IOS, and user in India prefer Android.  
+```{r SAH_map}
 #map for ASH in US
 tweet_locations_SAH <- df_SAH_cleaned %>% na.omit()%>%filter(lng>=(-130),lng<=(-60),lat>=(20),lat<=(50))
 
 us_basemap <- ggplot() +
   borders("state")+
   theme_map()+
-  geom_point(data = tweet_locations_SAH, aes(x = lng, y = lat),colour = 'red', alpha = .3) +
-  labs(title = "Tweet Locations for #StopAsianHate")
+  geom_point(data = tweet_locations_SAH, aes(x = lng, y = lat,colour = source), alpha = .5) +
+  labs(title = "Tweet Locations for #StopAsianHate")+
+  scale_color_manual(values=c("#ebae34", "#ebae34", "#8b19e3","#08d431","#eb3443","#eb3443"))
 
 us_basemap
 ```
-```{r}
+We can see the #StopAsianHate tweets are mainly located in major city in US. Also the majority of them use IOS device.  
+```{r bing_Vac}
 bing_Vac_counts <- df_Vac_cleaned1 %>%
   inner_join(get_sentiments("bing")) %>%
   count(word, sentiment, sort = TRUE) %>%
@@ -207,7 +230,9 @@ bing_Vac_counts %>%
        x = NULL) +
   coord_flip()
 ```
-```{r}
+For # Vaccine, the most negative word is virus and most common positive word is safe.  
+
+```{r bing_SAH}
 bing_SAH_counts <- df_SAH_cleaned1 %>%
   inner_join(get_sentiments("bing")) %>%
   count(word, sentiment, sort = TRUE) %>%
@@ -226,27 +251,28 @@ bing_SAH_counts %>%
        x = NULL) +
   coord_flip()
 ```
-```{r}
+For #StopAsianHate, the most common negative word is hate and positive word is support.  
+```{r sentiment_by_time}
 Vac_sentiment<- df_Vac_cleaned1 %>%
   inner_join(get_sentiments("bing")) %>%
-  mutate(index = format(as.POSIXlt(created_at),"%Y%m%d%H"))%>%
+  mutate(index = format(as.POSIXlt(created_at),"%m%d%H"))%>%
   count(index,sentiment)%>%
+  arrange(index)%>%
   pivot_wider(names_from = "sentiment",values_from="n")%>%
   mutate(sentiment= positive-negative)%>%
   mutate(pos = sentiment >= 0)
  
 
-time<-format(as.POSIXlt(df_Vac_cleaned1$created_at),"%Y-%m-%d-%H")
-time<-unique(time)
 
 ggplot(Vac_sentiment,aes(index,sentiment,fill = pos))+
   geom_bar(stat="identity")+theme(axis.text.x = element_text(angle=90))+
   theme(legend.position = "none")+
   labs(title="Sentiment of #Vaccine by hour")+
-  scale_x_discrete(labels= time)+ylim(c(-75,25))
+  ylim(c(-75,25))
 
 ```
-```{r}
+We can see the sentiment of most by time.
+```{r topic_analysis}
 
 corpus <- Corpus(VectorSource(df_Vac_cleaned$stripped_text))
 corpus <- tm_map(corpus, removeWords, stopwords("en"))  
